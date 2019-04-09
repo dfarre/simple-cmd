@@ -13,3 +13,4 @@ htmlcov
 .tox
 
 .msg
+.secrets.ini

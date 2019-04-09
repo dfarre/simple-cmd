@@ -8,7 +8,7 @@ ini.read('version.ini')
 with open('README.md') as readme:
     long_description = readme.read()
 
-tests_require = ['pytest-cov', 'freezegun']
+tests_require = ['pytest-cov']
 
 setuptools.setup(
     name=ini['version']['name'],
