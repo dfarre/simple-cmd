@@ -1,4 +1,5 @@
 import inspect
+import string
 
 from simple_cmd import commands
 
@@ -15,10 +16,13 @@ class ErrorsCommand:
         self.description, self.epilog = description, epilog
 
     def __call__(self, function):
+        parameters = inspect.signature(function).parameters
+        option_letters = set()
+
         class Command(commands.ErrorsCommand):
             arguments = tuple(
-                self.argparse_argument_spec(name, param)
-                for name, param in inspect.signature(function).parameters.items())
+                self.argparse_argument_spec(name, param, option_letters)
+                for name, param in parameters.items())
             exceptions = self.exceptions
             description = self.description
             epilog = self.epilog
@@ -28,9 +32,17 @@ class ErrorsCommand:
 
         return Command()
 
-    def argparse_argument_spec(self, name, param):
-        args = ('--' if param.kind == param.KEYWORD_ONLY else '') + name,
+    def argparse_argument_spec(self, name, param, option_letters):
         kwargs = {'help': [self.help.get(name)] if self.help.get(name) else []}
+
+        if param.kind == param.KEYWORD_ONLY:
+            args = ['--' + name.replace('_', '-')]
+            letter = self.get_option_letter(name, option_letters)
+
+            if letter is not None:
+                args.append(f'-{letter}')
+        else:
+            args = [name]
 
         if param.annotation != param.empty:
             if param.kind != param.VAR_POSITIONAL and self.is_list(param.annotation):
@@ -69,6 +81,18 @@ class ErrorsCommand:
         kwargs['help'] = '. '.join(reversed(kwargs['help']))
 
         return args, kwargs
+
+    @staticmethod
+    def get_option_letter(name, option_letters):
+        available_ascii = set(string.ascii_lowercase) - option_letters
+        available_initials = {w[0].lower() for w in name.split('_') if w} & available_ascii
+        available_letters = available_initials or available_initials
+
+        if available_letters:
+            letter = available_letters.pop()
+            option_letters.add(letter)
+
+            return letter
 
     @staticmethod
     def is_list(annotation):

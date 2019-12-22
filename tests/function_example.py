@@ -11,17 +11,17 @@ class DimensionMismatchError(Exception):
 @decorators.ErrorsCommand(DimensionMismatchError, ZeroDivisionError, help={
     'name': 'Give this name to the result', 'polar': '<Extra help for the CLI>'
 }, description='Computes a+(v|w)/b', epilog='<Epilog text>')
-def scalar_product(a: float, b=1.0, *v: complex, w: (list, complex), name='result',
+def scalar_product(a: float, b=1.0, *lcoord: complex, rcoord: (list, complex), name='result',
                    polar: 'Return in polar form'=False):
-    if len(v) != len(w):
+    if len(lcoord) != len(rcoord):
         raise DimensionMismatchError('Vectors should have the same dimension')
 
     if a == 3.14:
         raise ValueError('Fake unhandled error')
 
-    result = a + sum(x*y.conjugate() for x, y in zip(v, w))/b
+    result = a + sum(x*y.conjugate() for x, y in zip(lcoord, rcoord))/b
     out = cmath.polar(result) if polar else result
-    sys.stdout.write(f'{name} = {a} + {v}x{w}/{b} = {out}\n')
+    sys.stdout.write(f'{name} = {a} + {lcoord}x{rcoord}/{b} = {out}\n')
 
 
 if __name__ == '__main__':

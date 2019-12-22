@@ -45,27 +45,29 @@ class FunctionCommandTests(CommandsE2ETestCase):
 
         assert process.returncode == 0
         assert process.stdout.decode() == """
-usage: function_example.py [-h] --w W [W ...] [--name NAME] [--polar]
-                           a [b] [v [v ...]]
+usage: function_example.py [-h] --rcoord RCOORD [RCOORD ...] [--name NAME]
+                           [--polar]
+                           a [b] [lcoord [lcoord ...]]
 
 Computes a+(v|w)/b
 
 positional arguments:
-  a              float
-  b              float. Default: 1.0
-  v              complex
+  a                     float
+  b                     float. Default: 1.0
+  lcoord                complex
 
 keyword arguments:
-  -h, --help     show this help message and exit
-  --w W [W ...]  complex
-  --name NAME    str. Default: result. Give this name to the result
-  --polar        Return in polar form. <Extra help for the CLI>
+  -h, --help            show this help message and exit
+  --rcoord RCOORD [RCOORD ...], -r RCOORD [RCOORD ...]
+                        complex
+  --name NAME, -n NAME  str. Default: result. Give this name to the result
+  --polar, -p           Return in polar form. <Extra help for the CLI>
 
 <Epilog text>
 """.lstrip()
 
     def test_ok(self):
-        process = self.call('1', '1', '3', '4', '--w', '3', '-4', '--polar', '--name', 'R')
+        process = self.call('1', '1', '3', '4', '-r', '3', '-4', '--polar', '--name', 'R')
 
         assert process.returncode == 0
         assert process.stderr.decode() == ''
@@ -73,7 +75,7 @@ keyword arguments:
             'R = 1.0 + ((3+0j), (4+0j))x[(3+0j), (-4+0j)]/1.0 = (6.0, 3.141592653589793)\n')
 
     def test_raises__unhandled(self):
-        process = self.call('3.14', '-9', '3', '4', '--w', '3', '-4')
+        process = self.call('3.14', '-9', '3', '4', '-r', '3', '-4')
         stderr = process.stderr.decode()
 
         assert process.returncode == 1
@@ -82,18 +84,19 @@ keyword arguments:
         assert process.stdout.decode() == ''
 
     def test_raises__parser_error(self):
-        process = self.call('1', '0', '3', '4i', '--w', '3', '-4')
+        process = self.call('1', '0', '3', '4i', '-r', '3', '-4')
 
         assert process.returncode == 2
         assert process.stderr.decode() == """
-usage: function_example.py [-h] --w W [W ...] [--name NAME] [--polar]
-                           a [b] [v [v ...]]
-function_example.py: error: argument v: invalid complex value: '4i'
+usage: function_example.py [-h] --rcoord RCOORD [RCOORD ...] [--name NAME]
+                           [--polar]
+                           a [b] [lcoord [lcoord ...]]
+function_example.py: error: argument lcoord: invalid complex value: '4i'
 """.lstrip()
         assert process.stdout.decode() == ''
 
     def test_raises__dimension_mismatch(self):
-        process = self.call('1', '0', '--w', '3')
+        process = self.call('1', '0', '-r', '3')
 
         assert process.returncode == 3
         assert process.stderr.decode() == (
@@ -101,7 +104,7 @@ function_example.py: error: argument v: invalid complex value: '4i'
         assert process.stdout.decode() == ''
 
     def test_raises__zero_division(self):
-        process = self.call('1', '0', '3', '4', '--w', '3', '-4')
+        process = self.call('1', '0', '3', '4', '-r', '3', '-4')
 
         assert process.returncode == 4
         assert process.stderr.decode() == 'ZeroDivisionError: complex division by zero\n'
