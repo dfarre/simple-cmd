@@ -60,6 +60,8 @@ class ErrorsCommand:
                     if param.default:
                         kwargs['help'].append(f'Default: {param.default}')
 
+                kwargs.setdefault('type', str)
+
         if kwargs.get('type'):
             kwargs['help'].append(kwargs['type'].__name__)
 
