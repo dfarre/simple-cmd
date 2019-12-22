@@ -8,12 +8,9 @@ class DivideArray(commands.ErrorsCommand):
                  (('--divide', '-d'), dict(default=1, type=int)))
     exceptions = (ZeroDivisionError,)
 
-    def try_call(self, **kwargs):
-        result = [n/kwargs['divide'] for n in kwargs.pop('num')]
+    def try_call(self, *num, **kwargs):
+        result = [n/kwargs['divide'] for n in num]
         sys.stdout.write(f'{result}\n')
-
-    def finally_call(self, **kwargs):
-        sys.stdout.write(f'kwargs={kwargs} Exit {self.last_exit}\n')
 
 
 if __name__ == '__main__':

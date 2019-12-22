@@ -1,52 +1,108 @@
 import subprocess
 import unittest
-import unittest.mock as mock
-
-from . import example
 
 
-class CommandsUnitTests(unittest.TestCase):
-    command = example.DivideArray(test_mode=True)
+class CommandsE2ETestCase(unittest.TestCase):
+    module = ''
 
-    @mock.patch('sys.stdout.write')
-    def test_ok(self, stdout_mock):
-        assert self.command(num=[3, 9], divide=3) == 0
-        assert stdout_mock.call_args_list == [mock.call('[1.0, 3.0]\n'), mock.call(
-            "kwargs={'num': [3, 9], 'divide': 3} Exit 0\n")]
-
-    @mock.patch('sys.stdout.write')
-    @mock.patch('sys.stderr.write')
-    def test_raised(self, stderr_mock, stdout_mock):
-        assert self.command(num=[3], divide=0) == 1
-        stderr_mock.assert_called_once_with('ZeroDivisionError: division by zero\n')
-        stdout_mock.assert_called_once_with("kwargs={'num': [3], 'divide': 0} Exit 1\n")
-
-
-class CommandsE2ETests(unittest.TestCase):
-    def call(self, args):
-        return subprocess.run(['python', '-m', 'tests.example'] + args,
+    def call(self, *args):
+        return subprocess.run(('python3', '-m', self.module) + args,
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
+
+class ClassCommandTests(CommandsE2ETestCase):
+    module = 'tests.class_example'
+
     def test_args_handling(self):
-        process = self.call(['5', '7'])
+        process = self.call('5', '7')
+
+        assert process.returncode == 0
+        assert process.stderr.decode() == ''
+        assert process.stdout.decode() == '[5.0, 7.0]\n'
+
+    def test_raises(self):
+        process = self.call('2', '4', '-d', '0')
+
+        assert process.returncode == 3
+        assert process.stderr.decode() == 'ZeroDivisionError: division by zero\n'
+        assert process.stdout.decode() == ''
+
+    def test_no_arg(self):
+        process = self.call()
+
+        assert process.returncode == 2
+        assert process.stderr.decode() == (
+            'usage: class_example.py [-h] [--divide DIVIDE] num [num ...]\n'
+            'class_example.py: error: the following arguments are required: num\n')
+        assert process.stdout.decode() == ''
+
+
+class FunctionCommandTests(CommandsE2ETestCase):
+    module = 'tests.function_example'
+
+    def test_help(self):
+        process = self.call('--help')
+
+        assert process.returncode == 0
+        assert process.stdout.decode() == """
+usage: function_example.py [-h] --w W [W ...] [--name NAME] [--polar]
+                           a [b] [v [v ...]]
+
+Computes a+(v|w)/b
+
+positional arguments:
+  a              float
+  b              float. Default: 1.0
+  v              complex
+
+keyword arguments:
+  -h, --help     show this help message and exit
+  --w W [W ...]  complex
+  --name NAME    str. Default: result. Give this name to the result
+  --polar        Return in polar form. <Extra help for the CLI>
+
+<Epilog text>
+""".lstrip()
+
+    def test_ok(self):
+        process = self.call('1', '1', '3', '4', '--w', '3', '-4', '--polar', '--name', 'R')
 
         assert process.returncode == 0
         assert process.stderr.decode() == ''
         assert process.stdout.decode() == (
-            "[5.0, 7.0]\nkwargs={'divide': 1, 'num': [5, 7]} Exit 0\n")
+            'R = 1.0 + ((3+0j), (4+0j))x[(3+0j), (-4+0j)]/1.0 = (6.0, 3.141592653589793)\n')
 
-    def test_raises(self):
-        process = self.call(['2', '4', '-d', '0'])
+    def test_raises__unhandled(self):
+        process = self.call('3.14', '-9', '3', '4', '--w', '3', '-4')
+        stderr = process.stderr.decode()
 
         assert process.returncode == 1
-        assert process.stderr.decode() == 'ZeroDivisionError: division by zero\n'
-        assert process.stdout.decode() == "kwargs={'divide': 0, 'num': [2, 4]} Exit 1\n"
+        assert stderr.startswith('Traceback (most recent call last):\n')
+        assert stderr.endswith('ValueError: Fake unhandled error\n')
+        assert process.stdout.decode() == ''
 
-    def test_no_arg(self):
-        process = self.call([])
+    def test_raises__parser_error(self):
+        process = self.call('1', '0', '3', '4i', '--w', '3', '-4')
 
         assert process.returncode == 2
+        assert process.stderr.decode() == """
+usage: function_example.py [-h] --w W [W ...] [--name NAME] [--polar]
+                           a [b] [v [v ...]]
+function_example.py: error: argument v: invalid complex value: '4i'
+""".lstrip()
+        assert process.stdout.decode() == ''
+
+    def test_raises__dimension_mismatch(self):
+        process = self.call('1', '0', '--w', '3')
+
+        assert process.returncode == 3
         assert process.stderr.decode() == (
-            'usage: example.py [-h] [--divide DIVIDE] num [num ...]\n'
-            'example.py: error: the following arguments are required: num\n')
+            'DimensionMismatchError: Vectors should have the same dimension\n')
+        assert process.stdout.decode() == ''
+
+    def test_raises__zero_division(self):
+        process = self.call('1', '0', '3', '4', '--w', '3', '-4')
+
+        assert process.returncode == 4
+        assert process.stderr.decode() == 'ZeroDivisionError: complex division by zero\n'
         assert process.stdout.decode() == ''
