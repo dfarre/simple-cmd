@@ -53,10 +53,12 @@ class ErrorsCommand:
                 kwargs['action'] = 'store_true'
             else:
                 kwargs['default'] = param.default
-                kwargs['help'].append(f'Default: {param.default}')
 
                 if param.default is not None:
                     kwargs.setdefault('type', type(param.default))
+
+                    if param.default:
+                        kwargs['help'].append(f'Default: {param.default}')
 
         if kwargs.get('type'):
             kwargs['help'].append(kwargs['type'].__name__)
