@@ -1,4 +1,3 @@
-import abc
 import argparse
 import sys
 
@@ -11,14 +10,14 @@ class ArgumentParser(argparse.ArgumentParser):
         return super().add_argument_group(title, *args, **kwargs)
 
 
-class Command(metaclass=abc.ABCMeta):
-    arguments, description, epilog = (), '', ''
-
-    def __init__(self):
-        self.parser = ArgumentParser(description=self.description, epilog=self.epilog)
+class Command:
+    def __init__(self, function, *arguments, exceptions=(), **parser_kwargs):
+        self.function = function
+        self.exceptions = exceptions
+        self.parser = ArgumentParser(**parser_kwargs)
         self.positional_args, self.asterisk_arg = [], None
 
-        for args, kwargs in self.arguments:
+        for args, kwargs in arguments:
             action = self.parser.add_argument(*args, **kwargs)
 
             if not action.option_strings:
@@ -33,21 +32,9 @@ class Command(metaclass=abc.ABCMeta):
 
         return self.call(*args, **kw)
 
-    @abc.abstractmethod
-    def call(self, *args, **kwargs):
-        """The command function, should return the exit status"""
-
-
-class ErrorsCommand(Command, metaclass=abc.ABCMeta):
-    exceptions = ()
-
-    @abc.abstractmethod
-    def try_call(self, *args, **kwargs):
-        """May raise `self.exceptions`. The `n`th exception type produces exit status `n`"""
-
     def call(self, *args, **kwargs):
         try:
-            self.try_call(*args, **kwargs)
+            self.function(*args, **kwargs)
             return 0
         except self.exceptions as error:
             sys.stderr.write(f'{error.__class__.__name__}: {error}\n')

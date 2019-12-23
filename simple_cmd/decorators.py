@@ -1,3 +1,4 @@
+import collections
 import inspect
 import string
 
@@ -6,43 +7,43 @@ from simple_cmd import commands
 
 class ErrorsCommand:
     """
-    For a simple, fast definition of a CLI entrypoint, from a function,
-    the exceptions to handle, and help text
+    For a simple, fast definition of a CLI entrypoint from a function,
+    the exceptions to handle, extra help text for arguments, argument shorthands,
+    and extra kwargs for the `ArgumentParser` constructor
     """
 
-    def __init__(self, *exceptions, help=None, description='', epilog=''):
+    def __init__(self, *exceptions, help=None, shorthands=None, overrides=None,
+                 **parser_kwargs):
         self.exceptions = exceptions
         self.help = help or {}
-        self.description, self.epilog = description, epilog
+        self.shorthands = shorthands or {}
+        self.overrides = overrides or {}
+        self.parser_kwargs = parser_kwargs
 
     def __call__(self, function):
         parameters = inspect.signature(function).parameters
-        option_letters = set()
+        taken_strings = set(parameters) | set(self.shorthands.values())
+        arguments = ((self.get_argument_strings(name, param, taken_strings),
+                      self.get_argument_kwargs(name, param))
+                     for name, param in parameters.items())
 
-        class Command(commands.ErrorsCommand):
-            arguments = tuple(
-                self.argparse_argument_spec(name, param, option_letters)
-                for name, param in parameters.items())
-            exceptions = self.exceptions
-            description = self.description
-            epilog = self.epilog
+        return commands.Command(function, *arguments, exceptions=self.exceptions,
+                                **self.parser_kwargs)
 
-            def try_call(self, *args, **kwargs):
-                function(*args, **kwargs)
-
-        return Command()
-
-    def argparse_argument_spec(self, name, param, option_letters):
-        kwargs = {'help': [self.help.get(name)] if self.help.get(name) else []}
-
+    def get_argument_strings(self, name, param, taken_strings):
         if param.kind == param.KEYWORD_ONLY:
             args = ['--' + name.replace('_', '-')]
-            letter = self.get_option_letter(name, option_letters)
+            shorthand = self.shorthands.get(name) or self.get_short_form(name, taken_strings)
 
-            if letter is not None:
-                args.append(f'-{letter}')
+            if shorthand is not None:
+                args.append(f'-{shorthand}')
         else:
             args = [name]
+
+        return args
+
+    def get_argument_kwargs(self, name, param):
+        kwargs = {'help': [self.help.get(name)] if self.help.get(name) else []}
 
         if param.annotation != param.empty:
             if param.kind != param.VAR_POSITIONAL and self.is_list(param.annotation):
@@ -80,19 +81,27 @@ class ErrorsCommand:
 
         kwargs['help'] = '. '.join(reversed(kwargs['help']))
 
-        return args, kwargs
+        if name in self.overrides:
+            kwargs.update(self.overrides[name])
+
+        return kwargs
 
     @staticmethod
-    def get_option_letter(name, option_letters):
-        available_ascii = set(string.ascii_lowercase) - option_letters
-        available_initials = {w[0].lower() for w in name.split('_') if w} & available_ascii
-        available_letters = available_initials or available_initials
+    def get_short_form(name, taken_strings):
+        words = [w.lower() for w in name.split('_') if w]
 
-        if available_letters:
-            letter = available_letters.pop()
-            option_letters.add(letter)
+        for candidate in (''.join([w[0] for w in words[:i]]) for i in range(1, len(words)+1)):
+            if candidate not in taken_strings:
+                shorthand = candidate
+                break
+        else:
+            available_ascii = sorted(
+                set(string.ascii_lowercase) - taken_strings, reverse=True)
+            shorthand = available_ascii.pop() if available_ascii else None
 
-            return letter
+        if shorthand is not None:
+            taken_strings.add(shorthand)
+            return shorthand
 
     @staticmethod
     def is_list(annotation):
