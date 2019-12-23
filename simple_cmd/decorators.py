@@ -1,4 +1,3 @@
-import collections
 import inspect
 import string
 
@@ -62,7 +61,7 @@ class ErrorsCommand:
             kwargs.setdefault('nargs', '?')
 
         if param.default != param.empty:
-            if param.default is False:
+            if param.default is False and param.kind == param.KEYWORD_ONLY:
                 kwargs['action'] = 'store_true'
             else:
                 kwargs['default'] = param.default
