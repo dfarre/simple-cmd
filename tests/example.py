@@ -13,7 +13,7 @@ class DimensionMismatchError(Exception):
     shorthands={'result': 'n'}, overrides={'lcoord': {'nargs': '+'}},
     description='Computes a+(v|w)/b', epilog='<Epilog text>')
 def scalar_product(a: float, b=1.0, *lcoord: complex, rcoord: (list, complex), result='result',
-                   polar: 'Return in polar form'=False):
+                   polar: 'Return in polar form' = False):
     if len(lcoord) != len(rcoord):
         raise DimensionMismatchError('Vectors should have the same dimension')
 
