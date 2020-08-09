@@ -12,8 +12,9 @@ class ErrorsCommand:
     """
 
     def __init__(self, *exceptions, help=None, shorthands=None, overrides=None,
-                 **parser_kwargs):
+                 error_hook=lambda exc, *args, **kwargs: None, **parser_kwargs):
         self.exceptions = exceptions
+        self.error_hook = error_hook
         self.help = help or {}
         self.shorthands = shorthands or {}
         self.overrides = overrides or {}
@@ -27,7 +28,7 @@ class ErrorsCommand:
                      for name, param in parameters.items())
 
         return commands.Command(function, *arguments, exceptions=self.exceptions,
-                                **self.parser_kwargs)
+                                error_hook=self.error_hook, **self.parser_kwargs)
 
     def get_argument_strings(self, name, param, taken_strings):
         if param.kind == param.KEYWORD_ONLY:

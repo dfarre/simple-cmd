@@ -11,9 +11,11 @@ class ArgumentParser(argparse.ArgumentParser):
 
 
 class Command:
-    def __init__(self, function, *arguments, exceptions=(), **parser_kwargs):
+    def __init__(self, function, *arguments, exceptions=(),
+                 error_hook=lambda exc, *args, **kwargs: None, **parser_kwargs):
         self.function = function
         self.exceptions = exceptions
+        self.error_hook = error_hook
         self.parser = ArgumentParser(**parser_kwargs)
         self.positional_args, self.asterisk_arg = [], None
 
@@ -35,7 +37,14 @@ class Command:
     def call(self, *args, **kwargs):
         try:
             self.function(*args, **kwargs)
-            return 0
         except self.exceptions as error:
+            self.error_hook(error, *args, **kwargs)
             sys.stderr.write(f'{error.__class__.__name__}: {error}\n')
+
             return self.exceptions.index(error.__class__) + 3  # Exit 2 -> argparse error
+        except Exception as exception:
+            self.error_hook(exception, *args, **kwargs)
+
+            raise exception
+        else:
+            return 0
