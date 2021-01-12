@@ -38,4 +38,9 @@ class Command:
             return 0
         except self.exceptions as error:
             sys.stderr.write(f'{error.__class__.__name__}: {error}\n')
-            return self.exceptions.index(error.__class__) + 3  # Exit 2 -> argparse error
+            return self.find_exception_index(error) + 3  # Exit 2 -> argparse error
+
+    def find_exception_index(self, captured_exc):
+        for i, exc_type in enumerate(self.exceptions):
+            if isinstance(captured_exc, exc_type):
+                return i
