@@ -27,7 +27,7 @@ setuptools.setup(
         'Operating System :: OS Independent',
         'Intended Audience :: Developers'],
     packages=setuptools.find_packages(),
-    install_requires=['argparse'],
+    install_requires=[],
     setup_requires=['setuptools', 'configparser'],
     tests_require=tests_require,
     extras_require={'dev': ['ipdb', 'ipython'], 'test': tests_require},
